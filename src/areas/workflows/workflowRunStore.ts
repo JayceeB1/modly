@@ -49,7 +49,7 @@ function flushResume(): void {
   if (fn) fn()
 }
 
-interface NodeOutput { filePath?: string; text?: string; outputType?: string }
+interface NodeOutput { filePath?: string; text?: string; outputType?: string; sourceAssetPath?: string }
 
 function isSceneMeshOutput(output: NodeOutput | undefined): output is NodeOutput & { filePath: string } {
   return output?.outputType === 'mesh' && typeof output.filePath === 'string'
@@ -338,6 +338,15 @@ async function executeExtensionNode(
   // (e.g. a texture node taking a mesh plus multiple reference images).
   const extraImagePaths: string[] = []
 
+  // Propagate provenance only if incoming branches agree on a single source.
+  // Multiple distinct parents require explicit attribution; do not invent one.
+  const distinctSources = new Set<string>()
+  for (const edge of workflow.edges.filter((edge) => edge.target === node.id)) {
+    const candidate = resolveSource(edge.source)?.sourceAssetPath
+    if (candidate) distinctSources.add(candidate)
+  }
+  const nodeInputSourceAssetPath = distinctSources.size === 1 ? [...distinctSources][0] : undefined
+
   const incomingEdges = workflow.edges.filter((e) => e.target === node.id)
 
   if (ext?.inputs && ext.inputs.length > 1) {
@@ -498,6 +507,7 @@ async function executeExtensionNode(
         text:     nodeInputText,
         texts:    nodeInputTexts.length > 0 ? nodeInputTexts : undefined,
         nodeId:   nid,
+        sourceAssetPath: nodeInputSourceAssetPath,
       },
       processParams,
     )
@@ -508,7 +518,7 @@ async function executeExtensionNode(
   }
 
   const outputType = ext?.output ?? (nodeInputPath ? 'mesh' : undefined)
-  nodeOutputs.set(node.id, { filePath: nodeInputPath, text: nodeInputText, outputType })
+  nodeOutputs.set(node.id, { filePath: nodeInputPath, text: nodeInputText, outputType, sourceAssetPath: nodeInputSourceAssetPath })
 
   const output = nodeOutputs.get(node.id)
   const url = isSceneMeshOutput(output) ? toWorkspaceUrl(output.filePath, workspaceDir) : undefined
@@ -824,10 +834,10 @@ export const useWorkflowRunStore = create<WorkflowRunStore>((set, get) => {
                 const rel = currentMeshUrl.replace(/^\/workspace\//, '')
                 meshFilePath = `${workspaceDir}/${rel}`
               }
-              nodeOutputs.set(node.id, { filePath: meshFilePath, outputType: 'mesh' })
+              nodeOutputs.set(node.id, { filePath: meshFilePath, outputType: 'mesh', sourceAssetPath: meshFilePath })
             } else {
               const fp = node.data.params?.filePath as string | undefined
-              if (fp) nodeOutputs.set(node.id, { filePath: fp, outputType: 'mesh' })
+              if (fp) nodeOutputs.set(node.id, { filePath: fp, outputType: 'mesh', sourceAssetPath: fp })
             }
           }
           if (node.type === 'sceneNode') {

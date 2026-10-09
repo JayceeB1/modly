@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from services import llm_server
 from services.llm_server import llama_pool
+from services.asset_context import scene_context_lines
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -284,10 +285,9 @@ async def execute_tool(name: str, arguments: dict, context: dict) -> tuple[str, 
                 mesh_triangles = context.get("meshTriangles")
                 if not mesh_path:
                     return "No mesh currently loaded in the viewer.", None
-                info = f"Current mesh: {mesh_path}"
-                if mesh_triangles:
-                    info += f" ({mesh_triangles:,} triangles)"
-                return info, None
+                import services.generator_registry as registry_module
+                details = scene_context_lines(context, registry_module.WORKSPACE_DIR)
+                return "\n".join(details) or f"Current mesh: {mesh_path}", None
 
             elif name == "decimate_mesh":
                 r = await client.post(
@@ -524,11 +524,8 @@ async def agent_chat(request: AgentChatRequest):
 
     # Inject scene context so the LLM knows current state
     if request.context:
-        ctx_lines = []
-        if request.context.get("currentMeshPath"):
-            ctx_lines.append(f"Current mesh path: {request.context['currentMeshPath']}")
-        if request.context.get("meshTriangles"):
-            ctx_lines.append(f"Current mesh triangles: {request.context['meshTriangles']:,}")
+        import services.generator_registry as registry_module
+        ctx_lines = scene_context_lines(request.context, registry_module.WORKSPACE_DIR)
         if ctx_lines:
             messages.append({
                 "role": "system",

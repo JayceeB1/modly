@@ -1,7 +1,8 @@
 import path = require('path')
 import fs   = require('fs')
+import { resolveDerivedFrom } from './lineage'
 
-interface ProcessInput  { filePath?: string; text?: string }
+interface ProcessInput  { filePath?: string; text?: string; sourceAssetPath?: string }
 interface ProcessResult { filePath?: string; text?: string }
 interface ProcessContext {
   workspaceDir: string
@@ -251,12 +252,14 @@ const processor = async (
     context.log(`tagging skipped: ${e}`)
   }
   const tags = Array.from(new Set([...typedTags, ...suggested]))
+  const derivedFrom = resolveDerivedFrom(input.sourceAssetPath, context.workspaceDir)
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true })
   fs.writeFileSync(outPath.replace(/\.[^.]+$/, '') + '.tags.json', JSON.stringify({
     name:    typed || null,
     project: params['project'] || null,
     tags,
+    ...(derivedFrom ? { derived_from: derivedFrom } : {}),
     created: new Date().toISOString(),
   }, null, 2))
 

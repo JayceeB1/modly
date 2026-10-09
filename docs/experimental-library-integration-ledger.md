@@ -21,9 +21,13 @@ Modly repository. The adaptations in this fork do not supersede their source PRs
 
 ## Not ported: requires an independent functional adaptation
 
-- **#246 (Chat + asset context):** its old Ollama agent backend does not match
-  current 0.4.3 llama.cpp/chat architecture. The workflow runner input routing
-  also changed. Do not paste the old agent router or silently drop context.
+- **#246** is staged on child branch `integration/agent-asset-context-2026-10-10`:
+  bounded, workspace-confined sidecar/GLB metadata is surfaced to the existing
+  llama.cpp assistant; clip names and multiline narrative inputs are supported.
+  Provenance now threads through workflow process inputs, with an ambiguity
+  check, and the exporter writes a two-hop `derived_from` record without
+  following arbitrary file paths from metadata. Five isolated Python and seven
+  isolated Node tests passed. Combined end-to-end desktop tests remain unrun.
 - **#250** is now staged in child branch `integration/optimizer-presets-2026-10-10`.
   The current Python workflow adapter implements full-detail pass-through without
   changing the shared mesh-op API, and normalizes numeric budgets from HTML selects.
@@ -54,6 +58,10 @@ Modly repository. The adaptations in this fork do not supersede their source PRs
 - [ ] Verify 3D motion-bar and Library previews remain synchronized, including
   changing models and project/lineage views.
 - [ ] Retry free-text params and object-shaped manifest inputs.
+- [ ] Generate an asset, re-export it via multiple processing nodes and verify
+  ancestry labels in the exported .tags.json, with symlink and multi-parent cases.
+- [ ] Check chat context with sidecars, embedded GLB extras, long/malicious labels,
+  and its tool responses under both local and external LLM providers.
 - [ ] Verify source #370 destructive-storage safeguards and related tests in
   the final combined branch.
 - [ ] Review source #266 local API security separately (not included).
