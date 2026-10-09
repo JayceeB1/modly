@@ -32,6 +32,14 @@ function applyParamDefaults(
   )
 }
 
+// Normalize untyped third-party extension manifests at their IPC boundary.
+function normalizeInputs(raw: WorkflowExtension['inputs']): WorkflowExtension['inputs'] {
+  if (!raw) return raw
+  return raw.map((entry) => typeof entry === 'string'
+    ? entry
+    : (entry as unknown as { type: WorkflowExtension['input'] }).type)
+}
+
 export function buildAllWorkflowExtensions(
   modelExtensions:   ModelExtension[],
   processExtensions: ProcessExtension[],
@@ -50,7 +58,7 @@ export function buildAllWorkflowExtensions(
         name:            node.name,
         description:     ext.description ?? '',
         input:           node.input,
-        inputs:          node.inputs,
+        inputs:          normalizeInputs(node.inputs),
         inputLabels:     node.inputLabels,
         output:          node.output,
         params:          applyParamDefaults(node.paramsSchema as ParamSchema[], node.paramDefaults),
@@ -72,7 +80,7 @@ export function buildAllWorkflowExtensions(
         name:            node.name,
         description:     ext.description ?? '',
         input:           node.input,
-        inputs:          node.inputs,
+        inputs:          normalizeInputs(node.inputs),
         inputLabels:     node.inputLabels,
         output:          node.output,
         params:          applyParamDefaults(node.paramsSchema as ParamSchema[], node.paramDefaults),

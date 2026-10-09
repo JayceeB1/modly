@@ -60,3 +60,34 @@ test('workflow discovery excludes corrupted extensions with preserved nodes', ()
 
   assert.deepEqual(result.map((entry) => entry.id), ['healthy-model/generate'])
 })
+
+test('object-shaped manifest inputs are normalized to plain type strings', () => {
+  const { buildAllWorkflowExtensions } = loadModule()
+  const ext = extension('process', {
+    nodes: [{
+      id: 'image-to-image', name: 'Image to Image', input: 'image',
+      inputs: [
+        { name: 'front', label: 'Front', type: 'image', required: true },
+        { name: 'back', label: 'Back', type: 'image', required: false },
+      ],
+      output: 'image', paramsSchema: [],
+    }],
+  })
+  assert.deepEqual(buildAllWorkflowExtensions([], [ext])[0].inputs, ['image', 'image'])
+})
+
+test('plain-string multi-input manifest values are preserved', () => {
+  const { buildAllWorkflowExtensions } = loadModule()
+  const ext = extension('process', {
+    nodes: [{ id: 'p', name: 'Process', input: 'image', inputs: ['image', 'text'],
+      inputLabels: ['Source', 'Prompt'], output: 'mesh', paramsSchema: [] }],
+  })
+  const [node] = buildAllWorkflowExtensions([], [ext])
+  assert.deepEqual(node.inputs, ['image', 'text'])
+  assert.deepEqual(node.inputLabels, ['Source', 'Prompt'])
+})
+
+test('manifest without multi-input keeps inputs undefined', () => {
+  const { buildAllWorkflowExtensions } = loadModule()
+  assert.equal(buildAllWorkflowExtensions([], [extension('process')])[0].inputs, undefined)
+})
