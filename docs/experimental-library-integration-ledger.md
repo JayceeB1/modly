@@ -24,12 +24,16 @@ Modly repository. The adaptations in this fork do not supersede their source PRs
 - **#246 (Chat + asset context):** its old Ollama agent backend does not match
   current 0.4.3 llama.cpp/chat architecture. The workflow runner input routing
   also changed. Do not paste the old agent router or silently drop context.
-- **#250 (Optimizer preset semantics):** the source PR targets a legacy
-  `processor.ts`, whereas 0.4.3 uses a Python workflow adapter feeding a shared
-  mesh-op registry. A "full detail/no simplification" preset needs a reviewed
-  end-to-end contract that does not alter unrelated direct mesh API calls.
-- **#251 (Workflow parameter binding and library sync):** stack depends on the
-  #250 behavior. Port only after defining stable override precedence and tests.
+- **#250** is now staged in child branch `integration/optimizer-presets-2026-10-10`.
+  The current Python workflow adapter implements full-detail pass-through without
+  changing the shared mesh-op API, and normalizes numeric budgets from HTML selects.
+  Four regression tests were added to the project's Python suite; five isolated
+  Python checks passed on a reproduction of the changed adapter.
+- **#251** is now staged on the same child branch in two focused commits:
+  freshest-value parameter bindings, plus shared Library/viewer animation state
+  and responsive Library placement. Seven isolated Node tests passed for the
+  binding helper, including orphaned/self references and prototype-safe keys.
+  Native Electron/browser smoke tests and combined project CI remain unrun.
 - **#252 (Artist intent record and texture hot reload):** much larger divergent
   patch (workflow and API changes, new watcher services, extra proof assets).
   Requires separate rebase and validation against 0.4.3 and #246/#251.
@@ -45,6 +49,10 @@ Modly repository. The adaptations in this fork do not supersede their source PRs
 - [ ] Check Library thumbnails, previews, project/lineage filters and persistent
   panel size across restart, with missing/corrupt metadata.
 - [ ] Export rigged GLB/OBJ/STL/PLY, verify transforms/tags and project lineage.
+- [ ] Verify binding source parameter updates propagate through actual paused
+  and repeated workflows without hiding missing or invalid source questions.
+- [ ] Verify 3D motion-bar and Library previews remain synchronized, including
+  changing models and project/lineage views.
 - [ ] Retry free-text params and object-shaped manifest inputs.
 - [ ] Verify source #370 destructive-storage safeguards and related tests in
   the final combined branch.

@@ -159,10 +159,19 @@ export interface Workflow {
   folder?:     string
   /** Pinned in the workflow browser's Bookmarks section */
   bookmarked?: boolean
+  /** One source choice may feed another node's fallback or quality parameter. */
+  paramBindings?: WorkflowParamBinding[]
   nodes:       WFNode[]
   edges:       WFEdge[]
   createdAt:   string
   updatedAt:   string
+}
+
+export interface WorkflowParamBinding {
+  sourceNodeId: string
+  sourceParam: string
+  targetNodeId: string
+  targetParam: string
 }
 
 declare global {

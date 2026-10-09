@@ -1064,8 +1064,15 @@ export default function Viewer3D({
 
   const [viewMode, setViewMode] = useState<ViewMode>('solid')
   const [autoRotate, setAutoRotate] = useState(false)
-  const [clips, setClips] = useState<MotionClip[]>([])
-  const [activeClipIndex, setActiveClipIndex] = useState(0)
+  // The viewer and Library share one clip selection in the application store.
+  const clips = useAppStore((state) => state.motionClips)
+  const activeClipIndex = useAppStore((state) => state.activeClipIndex)
+  const setStoreMotionClips = useAppStore((state) => state.setMotionClips)
+  const setActiveClipIndex = useAppStore((state) => state.setActiveClipIndex)
+  const setClips = useCallback((nextClips: MotionClip[]) => {
+    setStoreMotionClips(nextClips)
+    if (useAppStore.getState().activeClipIndex >= nextClips.length) setActiveClipIndex(0)
+  }, [setStoreMotionClips, setActiveClipIndex])
   const selected = useAppStore((s) => s.meshSelected)
   const setSelected = useAppStore((s) => s.setMeshSelected)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)

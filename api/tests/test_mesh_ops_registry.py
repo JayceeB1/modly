@@ -177,10 +177,23 @@ class MeshOpsRegistryTests(unittest.TestCase):
                 (extension_dir / "manifest.json").read_text(encoding="utf-8")
             )
             self.assertEqual(manifest["entry"], "processor.py")
-            self.assertEqual(
-                manifest["nodes"][0]["params_schema"],
-                descriptions[operation_id]["params_schema"],
-            )
+            workflow_schema = manifest["nodes"][0]["params_schema"]
+            api_schema = descriptions[operation_id]["params_schema"]
+            if operation_id == "decimate":
+                # A workflow-only quality selector now maps to the unchanged
+                # shared mesh-op API (numeric target_faces with old defaults).
+                field = workflow_schema[0]
+                self.assertEqual(field["id"], "target_faces")
+                self.assertEqual(field["type"], "select")
+                self.assertEqual(field["default"], 1000000)
+                self.assertEqual(
+                    [option["value"] for option in field["options"]],
+                    [1000000, 12000, 30000, 60000, 120000],
+                )
+                self.assertEqual(api_schema[0]["type"], "int")
+                self.assertEqual(api_schema[0]["default"], 10000)
+            else:
+                self.assertEqual(workflow_schema, api_schema)
 
             wrapper = (extension_dir / "processor.py").read_text(encoding="utf-8")
             self.assertIn(
