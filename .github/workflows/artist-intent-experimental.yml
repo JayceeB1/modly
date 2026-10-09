@@ -1,0 +1,29 @@
+name: Artist Context experimental gate
+
+on:
+  push:
+    branches:
+      - integration/artist-intent-core-2026-10-10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  intent-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install project dependencies (no lifecycle scripts)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Assert test source parses
+        run: node --check src/areas/workflows/nodes/intent-travel/processor.test.mjs
+      - name: Artist Context unit tests
+        run: node --test src/areas/workflows/nodes/intent-travel/processor.test.mjs
+      - name: Typed built-in processors
+        run: ./node_modules/.bin/tsc --noEmit -p tsconfig.builtins.json
