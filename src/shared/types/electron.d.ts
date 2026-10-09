@@ -113,6 +113,8 @@ export interface ProcessInput {
   /** Per-slot texts for multi-text-input nodes (index = target handle slot). */
   texts?:    (string | undefined)[]
   nodeId?:   string
+  /** Physical source asset, used only to record workspace-confined export lineage. */
+  sourceAssetPath?: string
 }
 
 export interface ProcessResult {
