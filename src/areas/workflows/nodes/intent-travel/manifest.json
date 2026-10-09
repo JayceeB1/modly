@@ -1,0 +1,67 @@
+{
+  "id": "intent-travel",
+  "name": "Artist Context",
+  "type": "process",
+  "entry": "processor.js",
+  "version": "1.0.0",
+  "author": "Modly",
+  "description": "Carries the artist's exact request alongside every workflow asset.",
+  "nodes": [
+    {
+      "id": "start",
+      "name": "Remember Artist Context",
+      "input": "image",
+      "output": "image",
+      "params_schema": [
+        {
+          "id": "project",
+          "label": "Project",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "id": "extraDetails",
+          "label": "Extra details",
+          "type": "text",
+          "multiline": true,
+          "default": ""
+        },
+        {
+          "id": "movement",
+          "label": "Movement brief",
+          "type": "text",
+          "multiline": true,
+          "default": ""
+        },
+        {
+          "id": "styleName",
+          "label": "Style name",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "id": "stylePrompt",
+          "label": "Style prompt",
+          "type": "text",
+          "multiline": true,
+          "default": ""
+        }
+      ]
+    },
+    {
+      "id": "carry",
+      "name": "Carry Artist Context",
+      "input": "mesh",
+      "output": "mesh",
+      "params_schema": [
+        {
+          "id": "destinationPath",
+          "label": "Destination asset (existing)",
+          "type": "string",
+          "pickerIntent": "mesh",
+          "default": ""
+        }
+      ]
+    }
+  ]
+}
