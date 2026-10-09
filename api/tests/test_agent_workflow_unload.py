@@ -1,11 +1,14 @@
 import asyncio
 import json
 import unittest
+import tempfile
+from pathlib import Path
 from unittest import mock
 
 import httpx
 
 import routers.agent as agent
+import services.generator_registry as registry_module
 
 
 class _ScriptedServer:
@@ -99,13 +102,18 @@ class WorkflowVramUnloadTests(unittest.TestCase):
         self.assertEqual(slot.released, 1)
 
     def test_a_single_system_message_leads_the_conversation(self) -> None:
-        # Qwen3.5's template rejects a system message anywhere but first (HTTP 400).
-        context = {"currentMeshPath": "/tmp/a.glb", "extensions": [{"id": "remesh", "name": "Remesh"}]}
-        scripted, *_ = _run_local([_assistant(content="ok")], context)
+        # Current asset facts must come from a real workspace asset, not an
+        # arbitrary absolute path included in a user-controlled chat payload.
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            (workspace / "a.glb").write_bytes(b"invalid glb header is fine for path validation")
+            context = {"currentMeshPath": "a.glb", "extensions": [{"id": "remesh", "name": "Remesh"}]}
+            with mock.patch.object(registry_module, "WORKSPACE_DIR", workspace):
+                scripted, *_ = _run_local([_assistant(content="ok")], context)
         roles = [m["role"] for m in scripted.requests[0]["body"]["messages"]]
         self.assertEqual(roles, ["system", "user"])
         system = scripted.requests[0]["body"]["messages"][0]["content"]
-        self.assertIn("Current mesh path: /tmp/a.glb", system)
+        self.assertIn('Current workspace mesh: "a.glb"', system)
         self.assertIn("remesh", system)
 
     def test_tool_result_answers_its_call_id(self) -> None:
