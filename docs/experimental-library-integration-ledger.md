@@ -38,9 +38,14 @@ Modly repository. The adaptations in this fork do not supersede their source PRs
   and responsive Library placement. Seven isolated Node tests passed for the
   binding helper, including orphaned/self references and prototype-safe keys.
   Native Electron/browser smoke tests and combined project CI remain unrun.
-- **#252 (Artist intent record and texture hot reload):** much larger divergent
-  patch (workflow and API changes, new watcher services, extra proof assets).
-  Requires separate rebase and validation against 0.4.3 and #246/#251.
+- **#252 (Artist intent + texture hot reload):** divided into separately
+  reviewable features. The child branch `integration/artist-intent-core-2026-10-10`
+  now stages **explicit** Artist Context start/carry nodes and the versioned
+  `modly.intent.v1` record. The carrying operations verify physical workspace
+  containment, reject sidecar symlinks and cap input and metadata sizes.
+  **Automatic** intent propagation through generated model stages, texture
+  hot-reloading, and proof assets are **NOT** integrated. The nine regression
+  tests are added to the Node test command; full suite and Windows smoke are pending.
 
 ## Validation checklist — currently not executed on the combined branch
 
@@ -62,6 +67,13 @@ Modly repository. The adaptations in this fork do not supersede their source PRs
   ancestry labels in the exported .tags.json, with symlink and multi-parent cases.
 - [ ] Check chat context with sidecars, embedded GLB extras, long/malicious labels,
   and its tool responses under both local and external LLM providers.
+- [ ] Exercise the explicit #252 start/carry nodes in a real workflow with valid
+  PNG input and GLB output, including restart, conflicting intent IDs,
+  temporary workspace cleanup and sidecar read/write failures.
+- [ ] Design separate additive automation for carrying `modly.intent.v1` through
+  model generation; do not gate ordinary existing workflows on its presence.
+- [ ] Review #252 live texture watcher on another branch; avoid importing the
+  old fork UI/renderer files wholesale.
 - [ ] Verify source #370 destructive-storage safeguards and related tests in
   the final combined branch.
 - [ ] Review source #266 local API security separately (not included).
