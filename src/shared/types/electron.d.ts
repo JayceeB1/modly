@@ -81,6 +81,7 @@ export interface ParamSchema {
   // file-select: dropdown of the files inside the folder held by another param
   dir_from?:   string     // id of the (string) param holding the folder path
   extensions?: string[]   // file extensions to list (e.g. ["json"])
+  multiline?: boolean     // tall textarea for narrative descriptions
 }
 
 export interface ProcessExtension {

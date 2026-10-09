@@ -273,6 +273,8 @@ export default function ChatPanel(): JSX.Element {
   const apiUrl           = useAppStore((s) => s.apiUrl)
   const currentJob       = useAppStore((s) => s.currentJob)
   const meshStats        = useAppStore((s) => s.meshStats)
+  const motionClips      = useAppStore((s) => s.motionClips)
+  const activeClipIndex  = useAppStore((s) => s.activeClipIndex)
   const updateCurrentJob = useAppStore((s) => s.updateCurrentJob)
   const pushMeshUrl      = useAppStore((s) => s.pushMeshUrl)
   const undoMesh         = useAppStore((s) => s.undoMesh)
@@ -334,8 +336,14 @@ export default function ChatPanel(): JSX.Element {
 
   function buildContext(): Record<string, unknown> {
     const ctx: Record<string, unknown> = {}
-    if (currentJob?.outputUrl) ctx.currentMeshPath = currentJob.outputUrl.replace('/workspace/', '')
-    if (meshStats?.triangles)  ctx.meshTriangles   = meshStats.triangles
+    if (currentJob?.outputUrl?.startsWith('/workspace/')) {
+      ctx.currentMeshPath = currentJob.outputUrl.slice('/workspace/'.length)
+    }
+    if (meshStats?.triangles) ctx.meshTriangles = meshStats.triangles
+    if (currentJob && motionClips.length > 0) {
+      ctx.availableClips = motionClips.slice(0, 32).map((item) => item.name)
+      ctx.currentClipName = motionClips[Math.min(activeClipIndex, motionClips.length - 1)]?.name
+    }
     if (workflows.length > 0)  ctx.workflows       = workflows.map((w) => ({ id: w.id, name: w.name }))
     if (allExtensions.length > 0) ctx.extensions   = allExtensions.map((e) => ({
       id: e.id, name: e.name, input: e.input, output: e.output,
