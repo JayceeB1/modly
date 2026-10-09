@@ -169,6 +169,10 @@ function ParamField({ param, value, onChange }: {
       </div>
     )
   }
+  if (param.type === 'text') {
+    return <input type="text" value={value as string} placeholder={param.tooltip ?? ''}
+      onChange={(event) => onChange(event.target.value)} className={inputCls} />
+  }
   if (param.type === 'float') {
     return <FloatInput value={value as number} onChange={(v) => onChange(v)} className={inputCls}
       min={param.min} max={param.max} step={param.step} label={param.label} />
