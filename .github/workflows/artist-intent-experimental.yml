@@ -27,3 +27,20 @@ jobs:
         run: node --test src/areas/workflows/nodes/intent-travel/processor.test.mjs
       - name: Typed built-in processors
         run: ./node_modules/.bin/tsc --noEmit -p tsconfig.builtins.json
+      - name: Full Node suite (staged integration)
+        id: node_suite
+        continue-on-error: true
+        run: npm run test:node
+      - name: Main-process typecheck (staged integration)
+        id: main_types
+        continue-on-error: true
+        run: ./node_modules/.bin/tsc --noEmit -p tsconfig.node.json
+      - name: ESLint (staged integration)
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+      - name: Integrations gate
+        if: steps.node_suite.outcome != 'success' || steps.main_types.outcome != 'success' || steps.lint.outcome != 'success'
+        run: |
+          echo 'At least one integrated check failed; see the individual check logs.'
+          exit 1
