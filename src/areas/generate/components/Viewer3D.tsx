@@ -316,7 +316,7 @@ function GltfMeshModel(props: MeshModelProps): JSX.Element {
             className="bg-zinc-800 text-zinc-200 border border-zinc-700 rounded px-2 py-1 text-xs"
           >
             {animations.map((clip, i) => (
-              <option key={clip.name || i} value={i}>{clip.name || }</option>
+              <option key={clip.name || i} value={i}>{clip.name || ('Clip ' + (i + 1))}</option>
             ))}
           </select>
         </Html>
