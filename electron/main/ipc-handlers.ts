@@ -42,6 +42,7 @@ import {
   weightStorageHasLocalData,
 } from './model-sources'
 import { getSettings, setSettings } from './settings-store'
+import { deleteStorageDirectory, moveStorageDirectory } from './storage-directory-guard'
 import { checkSetupNeeded, markSetupDone, runFullSetup, getVenvPythonExe, ensureSslPatch } from './python-setup'
 import { logger } from './logger'
 import { getProcessRunner, getPythonProcessRunner, getExtPythonExe, terminateProcessRunner, terminateAllProcessRunners } from './process-runner'
@@ -891,6 +892,29 @@ export function setupIpcHandlers(pythonBridge: PythonBridge, getWindow: WindowGe
     return { total, used: total - free, available: free }
   })
 
+  // GPU memory (VRAM) — NVIDIA only via nvidia-smi
+  ipcMain.handle('system:gpuMemory', async () => {
+    if (process.platform === 'darwin' && process.arch === 'arm64') {
+      // Apple Silicon: unified memory, no separate VRAM
+      return null
+    }
+    try {
+      const { stdout } = await pExecFile('nvidia-smi', [
+        '--query-gpu=memory.total,memory.used',
+        '--format=csv,noheader,nounits'
+      ])
+      const line = stdout.trim().split('\n')[0].trim()
+      const [totalMiB, usedMiB] = line.split(',').map(s => parseInt(s.trim(), 10))
+      if (isNaN(totalMiB) || isNaN(usedMiB) || totalMiB === 0) return null
+      const total = totalMiB * 1024 * 1024
+      const used = usedMiB * 1024 * 1024
+      const available = total - used
+      return { total, used, available }
+    } catch {
+      return null
+    }
+  })
+
   ipcMain.handle('app:info', () => ({
     version:   app.getVersion(),
     userData:  app.getPath('userData'),
@@ -1091,9 +1115,8 @@ export function setupIpcHandlers(pythonBridge: PythonBridge, getWindow: WindowGe
 
   ipcMain.handle('fs:moveDirectory', async (_, { src, dest }: { src: string; dest: string }) => {
     try {
-      await mkdir(dest, { recursive: true })
-      await cp(src, dest, { recursive: true })
-      await rmAsync(src, { recursive: true, force: true })
+      const userData = app.getPath('userData')
+      await moveStorageDirectory(src, dest, getSettings(userData), userData, { appDir: app.getAppPath() })
       return { success: true }
     } catch (err) {
       return { success: false, error: String(err) }
@@ -1101,21 +1124,9 @@ export function setupIpcHandlers(pythonBridge: PythonBridge, getWindow: WindowGe
   })
 
   ipcMain.handle('fs:deleteDirectory', async (_, dirPath: string) => {
-    const userData = app.getPath('userData')
-    const settings = getSettings(userData)
-    const allowedRoots = [
-      settings.modelsDir,
-      settings.workspaceDir,
-      settings.extensionsDir,
-      join(userData, 'gen-cache'),
-    ]
-    const resolved = join(dirPath)
-    const isAllowed = allowedRoots.some((root) => resolved.startsWith(root))
-    if (!isAllowed) {
-      return { success: false, error: 'Path is outside allowed directories' }
-    }
     try {
-      await rmAsync(resolved, { recursive: true, force: true })
+      const userData = app.getPath('userData')
+      await deleteStorageDirectory(dirPath, getSettings(userData), userData, { appDir: app.getAppPath() })
       return { success: true }
     } catch (err) {
       return { success: false, error: String(err) }
