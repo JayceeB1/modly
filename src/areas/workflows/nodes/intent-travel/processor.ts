@@ -48,6 +48,27 @@ function managedAsset(workspaceDir: string, candidate: string): string {
   return real
 }
 
+function assertWorkspaceDirectory(workspaceDir: string, folder: string): string {
+  const root = fs.realpathSync(workspaceDir)
+  const physical = fs.realpathSync(folder)
+  if (!fs.statSync(physical).isDirectory()) throw new Error('Artist context needs a directory')
+  const relative = path.relative(root, physical)
+  if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
+    throw new Error('Artist context directory must stay inside the workspace')
+  }
+  return physical
+}
+
+function refuseSymlink(filePath: string): void {
+  try {
+    if (fs.lstatSync(filePath).isSymbolicLink()) {
+      throw new Error('Artist context refuses a sidecar symlink')
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+}
+
 function checkedImageExtension(source: string): string {
   const ext = path.extname(source).toLowerCase()
   if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
@@ -73,6 +94,7 @@ function sidecarPath(assetPath: string): string {
 }
 
 function readObject(filePath: string, missingOk: boolean): JsonObject {
+  refuseSymlink(filePath)
   if (!fs.existsSync(filePath)) {
     if (missingOk) return {}
     throw new Error(`Artist context is missing: ${filePath}`)
@@ -93,6 +115,7 @@ function readObject(filePath: string, missingOk: boolean): JsonObject {
 }
 
 function writeObjectAtomic(filePath: string, value: JsonObject): void {
+  refuseSymlink(filePath)
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   const temporary = `${filePath}.${process.pid}.${Date.now()}.tmp`
   try {
@@ -260,8 +283,14 @@ function stageSource(input: ProcessInput, params: JsonObject, context: ProcessCo
   }
 
   const suffix = originalPath ? checkedImageExtension(originalPath) : '.png'
-  const runDir = path.join(context.workspaceDir, 'Workflows', 'intent-sources', crypto.randomUUID())
-  fs.mkdirSync(runDir, { recursive: true })
+  const workflowRoot = path.join(context.workspaceDir, 'Workflows')
+  fs.mkdirSync(workflowRoot, { recursive: true })
+  const checkedWorkflowRoot = assertWorkspaceDirectory(context.workspaceDir, workflowRoot)
+  const intentRoot = path.join(checkedWorkflowRoot, 'intent-sources')
+  fs.mkdirSync(intentRoot, { recursive: true })
+  const checkedIntentRoot = assertWorkspaceDirectory(context.workspaceDir, intentRoot)
+  const runDir = path.join(checkedIntentRoot, crypto.randomUUID())
+  fs.mkdirSync(runDir)
   const staged = path.join(runDir, `source${suffix}`)
   if (originalPath) {
     if (!fs.existsSync(originalPath)) throw new Error(`Source image does not exist: ${originalPath}`)
