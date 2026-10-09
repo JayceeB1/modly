@@ -25,6 +25,9 @@ export interface GenerationJob {
   modelId?: string             // model used for this generation
   originalTriangles?: number   // polygon count of the original mesh
   generationOptions?: GenerationOptions
+  /** Stable Library identity for the asset currently loaded in the viewer. */
+  libraryEntryId?: string
+  libraryWorkspacePath?: string
   error?: string
   createdAt: number
 }
@@ -103,6 +106,12 @@ interface AppState {
   // Mesh stats (set by Viewer3D, read by GenerationHUD)
   meshStats: { vertices: number; triangles: number } | null
   setMeshStats: (stats: { vertices: number; triangles: number } | null) => void
+
+  // Shared animation state used by the viewer's MotionBar and Library preview.
+  motionClips: Array<{ name: string }>
+  setMotionClips: (clips: Array<{ name: string }>) => void
+  activeClipIndex: number
+  setActiveClipIndex: (index: number) => void
 
   // Mesh selection (set by Viewer3D click, read by the Generate tools bar)
   meshSelected: boolean
@@ -275,6 +284,10 @@ export const useAppStore = create<AppState>()(
       generationOptions: DEFAULT_OPTIONS,
       meshStats: null,
       setMeshStats: (stats) => set({ meshStats: stats }),
+      motionClips: [],
+      setMotionClips: (clips) => set({ motionClips: clips }),
+      activeClipIndex: 0,
+      setActiveClipIndex: (index) => set({ activeClipIndex: index }),
       meshSelected: false,
       setMeshSelected: (selected) => set({ meshSelected: selected }),
       initApp: async () => {
@@ -299,7 +312,15 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      setCurrentJob: (job) => set({ currentJob: job, meshStats: job === null ? null : get().meshStats }),
+      setCurrentJob: (job) => {
+        const changed = job?.id !== get().currentJob?.id
+        set({
+          currentJob: job,
+          meshStats: job === null ? null : get().meshStats,
+          motionClips: changed ? [] : get().motionClips,
+          activeClipIndex: changed ? 0 : get().activeClipIndex,
+        })
+      },
 
       updateCurrentJob: (patch) => {
         const current = get().currentJob
