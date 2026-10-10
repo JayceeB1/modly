@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - integration/artist-intent-core-2026-10-10
+      - integration/live-texture-2026-10-10
   workflow_dispatch:
 
 permissions:
@@ -73,6 +74,8 @@ jobs:
         run: node --test --experimental-strip-types --experimental-loader ./scripts/node-ts-extensionless-loader.mjs electron/main/storage-directory-guard.test.ts
       - name: Windows artist-intent regression
         run: node --test src/areas/workflows/nodes/intent-travel/processor.test.mjs
+      - name: Windows texture watcher, IPC and Three.js helper regressions
+        run: node --test --experimental-strip-types --experimental-loader ./scripts/node-ts-extensionless-loader.mjs electron/main/texture-watch-service.test.ts electron/preload/texture-watch-preload.test.ts src/areas/generate/components/liveTexture.test.ts
       - name: Windows main-process typecheck
         run: npx --no-install tsc --noEmit -p tsconfig.node.json
       - name: Windows built-ins typecheck

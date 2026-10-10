@@ -49,11 +49,16 @@ function fixture(t) {
   }
   const stub = new Proxy({}, { get: () => () => {} })
   const deps = (name) => {
-    if (name === 'electron') return { ipcMain: { handle: (id, fn) => handlers.set(id, fn), on: () => {} }, app: { getPath: () => root, on: () => {} } }
+    if (name === 'electron') return { ipcMain: { handle: (id, fn) => handlers.set(id, fn), on: () => {} }, app: { getPath: () => root, on: () => {}, once: () => {} } }
     if (name === 'axios') return {
       post: (...args) => hooks.unload(...args),
       get: (...args) => hooks.listModels(...args),
       isAxiosError: (err) => Boolean(err?.isAxiosError),
+    }
+    // The storage/texture watcher is unrelated to weight removal. Do not start
+    // real OS watchers in this mocked Electron IPC fixture.
+    if (name === './texture-watch-service') return {
+      TextureWatchService: class { stopAll() {} stop() {} },
     }
     if (name === './model-sources') return realSources
     if (name === './model-download-plan') return realPlan

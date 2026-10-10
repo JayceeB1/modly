@@ -21,6 +21,7 @@ import { useGeneration } from '@shared/hooks/useGeneration'
 import { useAppStore } from '@shared/stores/appStore'
 import { ViewerToolbar, type ViewMode } from './ViewerToolbar'
 import { MotionBar, type MotionClip } from './MotionBar'
+import LiveTexturePanel from './LiveTexturePanel'
 import type { LightSettings, PointLight } from '@shared/stores/appStore'
 import { DEFAULT_LIGHT_SETTINGS } from '@shared/stores/appStore'
 
@@ -1388,6 +1389,14 @@ export default function Viewer3D({
             onAutoRotate={() => setAutoRotate((v) => !v)}
             onScreenshot={handleScreenshot}
             showViewModes={!isSplat}
+          />
+        )}
+
+        {modelUrl && !isSplat && (
+          <LiveTexturePanel
+            key={modelUrl}
+            object={meshObject}
+            onApplied={() => setViewMode('solid')}
           />
         )}
 

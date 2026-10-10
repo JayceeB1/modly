@@ -88,6 +88,8 @@ import {
 import { registerWorkspaceAssetLibraryIpcHandlers } from './artifact-registry-service'
 import { updatesSupported } from './updater'
 import { ModelWeightOperations } from './model-weight-operations'
+import { TextureWatchService } from './texture-watch-service'
+import type { TextureWatchChoice } from '../../src/shared/types/liveTexture'
 import { readLocalFileBase64 } from './bounded-file-reader'
 import { encryptSecret, decryptSecret } from './secure-store'
 import { getHfToken, initHfToken, setHfToken } from './hf-token'
@@ -172,6 +174,10 @@ const renameWithRetry = (from: string, to: string, label: string) =>
   renameExtensionWithRetry(from, to, label, logger)
 
 export function setupIpcHandlers(pythonBridge: PythonBridge, getWindow: WindowGetter): void {
+  const textureWatchService = new TextureWatchService()
+  const textureWatchOwners = new Set<number>()
+  app.once('before-quit', () => textureWatchService.stopAll())
+
   type ActiveDownload = {
     progress: DownloadProgress & { variantId?: string }
     done: Promise<void>
@@ -473,6 +479,44 @@ export function setupIpcHandlers(pythonBridge: PythonBridge, getWindow: WindowGe
     if (existsSync(modelDir)) {
       shell.openPath(modelDir)
     }
+  })
+
+  // Only a user-selected PNG may be monitored; the renderer cannot supply
+  // filesystem paths directly. One watcher is owned by each Electron renderer.
+  ipcMain.handle('texture:chooseAndWatch', async (event): Promise<TextureWatchChoice> => {
+    const win = getWindow()
+    if (!win || win.webContents.isDestroyed() || event.sender.id !== win.webContents.id) {
+      return { cancelled: true }
+    }
+
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Choose a texture to watch',
+      filters: [{ name: 'PNG image', extensions: ['png'] }],
+      properties: ['openFile'],
+    })
+    if (result.canceled || !result.filePaths[0]) return { cancelled: true }
+
+    const ownerId = event.sender.id
+    if (!textureWatchOwners.has(ownerId)) {
+      textureWatchOwners.add(ownerId)
+      event.sender.once('destroyed', () => {
+        textureWatchOwners.delete(ownerId)
+        textureWatchService.stop(ownerId)
+      })
+    }
+
+    try {
+      const update = await textureWatchService.start(ownerId, result.filePaths[0], (next) => {
+        if (!event.sender.isDestroyed()) event.sender.send('texture:changed', next)
+      })
+      return { cancelled: false, update }
+    } catch (err) {
+      return { cancelled: true, error: String(err) }
+    }
+  })
+
+  ipcMain.handle('texture:stopWatching', (event) => {
+    textureWatchService.stop(event.sender.id)
   })
 
   // Read local file → base64 (bypasses file:// restrictions in the renderer)
