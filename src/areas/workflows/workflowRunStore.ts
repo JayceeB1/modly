@@ -9,6 +9,7 @@ import type { Workflow, WFNode, WFEdge } from '@shared/types/electron.d'
 import { isBranchStarter, isSceneOutput, resolveDataSource, reachesSceneOutput, nearestUpstreamWaits } from './nodeBehaviors'
 import { assignSlotFilePaths } from './slotInputs'
 import { resolveBoundWorkflowParams } from './workflowParamBindings'
+import { assessIntentSources } from './intentPropagation'
 import type { SlotInputType } from './slotInputs'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -49,7 +50,32 @@ function flushResume(): void {
   if (fn) fn()
 }
 
-interface NodeOutput { filePath?: string; text?: string; outputType?: string; sourceAssetPath?: string }
+interface NodeOutput { filePath?: string; text?: string; outputType?: string; sourceAssetPath?: string; intentAssetPath?: string }
+
+/** Carry only an explicitly initiated modly.intent.v1 across generated assets. */
+async function carryArtistIntent(
+  sourcePath: string,
+  destinationPath: string,
+  node: WFNode,
+  ext: WorkflowExtension,
+): Promise<void> {
+  const result = await window.electron.extensions.runProcess(
+    'intent-travel',
+    { filePath: sourcePath, nodeId: 'carry' },
+    {
+      destinationPath,
+      stage: node.data.label ?? ext.name,
+      details: {
+        node_id: node.id,
+        extension_id: node.data.extensionId ?? null,
+        output_type: ext.output,
+      },
+    },
+  )
+  if (!result.success || !result.result?.filePath) {
+    throw new Error(result.error ?? 'Artist context could not be carried to the next stage')
+  }
+}
 
 function isSceneMeshOutput(output: NodeOutput | undefined): output is NodeOutput & { filePath: string } {
   return output?.outputType === 'mesh' && typeof output.filePath === 'string'
@@ -348,6 +374,10 @@ async function executeExtensionNode(
   const nodeInputSourceAssetPath = distinctSources.size === 1 ? [...distinctSources][0] : undefined
 
   const incomingEdges = workflow.edges.filter((e) => e.target === node.id)
+  const intentDecision = assessIntentSources(incomingEdges.map((edge) => resolveSource(edge.source)))
+  if (intentDecision.conflict) {
+    throw new Error('Artist context has ambiguous inputs. Use a single staged source instead of silently losing attribution.')
+  }
 
   if (ext?.inputs && ext.inputs.length > 1) {
     // Scene is intentionally a single-input-only model contract. The guard
@@ -480,8 +510,12 @@ async function executeExtensionNode(
       useAppStore.getState().updateCurrentJob({ status: 'generating', progress: st.progress, step: st.step })
     }
   } else {
+    const isIntentStart = ext?.extensionId === 'intent-travel' && ext?.nodeId === 'start'
+    if (isIntentStart && !nodeInputPath && selectedImageData) nodeInputText = selectedImageData
     if (ext?.input === 'mesh'  && !nodeInputPath) throw new Error(`${ext.name} needs an incoming mesh connection`)
-    if (ext?.input === 'image' && !nodeInputPath) throw new Error(`${ext.name} needs an incoming image connection`)
+    if (ext?.input === 'image' && !nodeInputPath && !(isIntentStart && selectedImageData)) {
+      throw new Error(`${ext.name} needs an incoming image connection`)
+    }
     if (ext?.input === 'audio' && !nodeInputPath) throw new Error(`${ext.name} needs an incoming audio connection`)
     if (ext?.input === 'text'  && !nodeInputText) throw new Error(`${ext.name} needs an incoming text connection`)
 
@@ -518,7 +552,25 @@ async function executeExtensionNode(
   }
 
   const outputType = ext?.output ?? (nodeInputPath ? 'mesh' : undefined)
-  nodeOutputs.set(node.id, { filePath: nodeInputPath, text: nodeInputText, outputType, sourceAssetPath: nodeInputSourceAssetPath })
+  const isArtistStart = ext?.extensionId === 'intent-travel' && ext.nodeId === 'start'
+  const isArtistCarry = ext?.extensionId === 'intent-travel' && ext.nodeId === 'carry'
+  let outputIntentPath: string | undefined
+  if ((isArtistStart || isArtistCarry) && nodeInputPath) {
+    // The explicit process node verified/created its modly.intent.v1 sidecar.
+    outputIntentPath = nodeInputPath
+  } else if (
+    intentDecision.source && nodeInputPath && ext
+    && (outputType === 'image' || outputType === 'mesh')
+  ) {
+    if (intentDecision.source !== nodeInputPath) {
+      await carryArtistIntent(intentDecision.source, nodeInputPath, node, ext)
+    }
+    outputIntentPath = nodeInputPath
+  }
+  nodeOutputs.set(node.id, {
+    filePath: nodeInputPath, text: nodeInputText, outputType,
+    sourceAssetPath: nodeInputSourceAssetPath, intentAssetPath: outputIntentPath,
+  })
 
   const output = nodeOutputs.get(node.id)
   const url = isSceneMeshOutput(output) ? toWorkspaceUrl(output.filePath, workspaceDir) : undefined
