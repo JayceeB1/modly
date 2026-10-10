@@ -13,5 +13,5 @@ export interface TextureWatchUpdate {
   message?: string
 }
 export type TextureWatchChoice =
-  | { cancelled: true }
+  | { cancelled: true; error?: string }
   | { cancelled: false; update: TextureWatchUpdate }
