@@ -23,6 +23,7 @@
     "electron.vite.config.*",
     "electron/**/*",
     "src/shared/types/assetLibrary.ts",
-    "src/shared/types/artifacts.ts"
+    "src/shared/types/artifacts.ts",
+    "src/shared/types/liveTexture.ts"
   ]
 }
